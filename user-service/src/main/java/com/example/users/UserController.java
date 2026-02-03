@@ -1,6 +1,9 @@
 package com.example.users;
 
 import org.springframework.web.bind.annotation.*;
+import com.example.users.client.ExchangeClient;
+import com.example.users.client.ExchangeRateDto;
+
 
 import java.util.List;
 
@@ -8,13 +11,22 @@ import java.util.List;
 @RequestMapping("/users")
 public class UserController {
 	
+	private final ExchangeClient exchangeClient;
+
+	
 	private final UserRepository repo;
 	
-	public UserController(UserRepository repo) {
-		this.repo = repo;
-		
+	public UserController(UserRepository repo, ExchangeClient exchangeClient) {
+	    this.repo = repo;
+	    this.exchangeClient = exchangeClient;
 	}
 	
+	@GetMapping("/rate")
+	public String rate() {
+	    ExchangeRateDto dto = exchangeClient.getRate("EUR", "RSD");
+	    return "EUR->RSD rate = " + dto.rate;
+	}
+
 	// listamo sve korisnike
 	@GetMapping
 	public List<User> all(){
