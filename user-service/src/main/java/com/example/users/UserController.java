@@ -1,6 +1,8 @@
 package com.example.users;
 
 import org.springframework.web.bind.annotation.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+
 import com.example.users.client.ExchangeClient;
 import com.example.users.client.ExchangeRateDto;
 
@@ -22,11 +24,16 @@ public class UserController {
 	}
 	
 	@GetMapping("/rate")
-	public String rate() {
-	    ExchangeRateDto dto = exchangeClient.getRate("EUR", "RSD");
-	    return "EUR->RSD rate = " + dto.rate;
+	@CircuitBreaker(name = "exchangeService", fallbackMethod = "rateFallback")
+	public String rate(@RequestParam String from, @RequestParam String to) {
+	    ExchangeRateDto dto = exchangeClient.getRate(from, to);
+	    return from + "->" + to + " rate = " + dto.rate;
 	}
 
+	public String rateFallback(String from, String to, Throwable t) {
+	    return "Exchange service nije dostupan trenutno (fallback).";
+	}
+	
 	// listamo sve korisnike
 	@GetMapping
 	public List<User> all(){
