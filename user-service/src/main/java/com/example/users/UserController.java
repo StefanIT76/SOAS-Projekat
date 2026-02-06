@@ -1,10 +1,18 @@
 package com.example.users;
 
 import org.springframework.web.bind.annotation.*;
+
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 
 import com.example.users.client.ExchangeClient;
 import com.example.users.client.ExchangeRateDto;
+
+import com.example.userservice.client.BankAccountClient;
+import com.example.userservice.dto.BankAccountRequest;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 
 
 import java.util.List;
@@ -18,9 +26,12 @@ public class UserController {
 	
 	private final UserRepository repo;
 	
-	public UserController(UserRepository repo, ExchangeClient exchangeClient) {
+	private final BankAccountClient bankAccountClient;
+	
+	public UserController(UserRepository repo, ExchangeClient exchangeClient, BankAccountClient bankAccountClient) {
 	    this.repo = repo;
 	    this.exchangeClient = exchangeClient;
+	    this.bankAccountClient = bankAccountClient;
 	}
 	
 	@GetMapping("/rate")
@@ -44,6 +55,7 @@ public class UserController {
 	@PostMapping
 	public User create(@RequestBody User user) {
 		
+		
 		if (user.getEmail() == null || user.getEmail().isBlank()) {
 			throw new RuntimeException("Email is required");
 		}
@@ -60,10 +72,17 @@ public class UserController {
 		
 		//mozemo samo jedan owner;
 		if (user.getRole() == Role.OWNER && repo.existsByRole(Role.OWNER)) {
-			throw new RuntimeException("Owner already exist");
+		    throw new ResponseStatusException(HttpStatus.CONFLICT, "Owner already exist");
 		}
+
 		
-		return repo.save(user);
+		User saved = repo.save(user);
+		
+		if (saved.getRole() == Role.USER) {
+	        bankAccountClient.createAccount(new BankAccountRequest(saved.getEmail(), 0));
+	    }
+		
+		return saved;
 	}
 	
 	@DeleteMapping("/{id}")
